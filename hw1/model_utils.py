@@ -168,7 +168,10 @@ def train_model(
 
 def load_model(path):
     with open(path) as infile:
-        return pickle.load(file=infile)
+        model = pickle.load(file=infile)
+    if IS_CUDA:
+        model = model.cuda()
+    return model
 
 
 def load_policy(path):
