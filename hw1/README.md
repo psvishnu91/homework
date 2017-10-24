@@ -16,3 +16,36 @@ In `experts/`, the provided expert policies are:
 * Walker2d-v1.pkl
 
 The name of the pickle file corresponds to the name of the gym environment.
+
+------
+# Executing the code
+
+## Section 3: Behavior cloning
+This involves sampling (state->action) pairs from an expert policy and
+learning a supervised model for various tasks.
+
+### Code to sample an expert
+``` bash
+$ python run_expert.py experts/Humanoid-v1.pkl Humanoid-v1  \
+	humanoid_rollouts_20.pkl \
+	--render \
+	--num_rollouts 20
+```
+
+### Code to learn a supervised model to clone behavior
+``` bash
+$ python bclone.py  \
+	--rollout humanoid_rollouts_50.pkl \
+	--output humanoid_bc_3l_fc_h100_500e.pkl \
+	--epochs 500
+```
+
+### Code to simulate and test the cloned behavior
+``` bash
+$ python run_expert.py \
+	humanoid_bc_3l_fc_h100_500e.pkl  \
+	Humanoid-v1  \
+	--user_policy \
+	--render \
+	--num_rollouts 10
+```
