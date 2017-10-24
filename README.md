@@ -4,5 +4,5 @@ This repo contains my solutions for the Deep RL course by [UC Berkeley](http://r
 Please check each hw folder for reports / how to run the code.
 
 ---
-# Updates
+## Updates
 1. Implemented behavior cloning.
