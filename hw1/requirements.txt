@@ -4,5 +4,5 @@ tensorflow
 numpy
 pandas
 matplotlib
-pyrcrayon
+pycrayon
 tqdm
