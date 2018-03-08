@@ -57,13 +57,14 @@ def main():
             max_dagger_iters=cmd_opts.max_dagger_iters,
             output_model_path=cmd_opts.output_path,
         )
-        run_sim.run_sim(
-            policy_fn=model_utils.model_to_policy(model=model),
-            envname=cmd_opts.env,
-            num_rollouts=3,
-            render=True,
-            max_timesteps=None,
-        )
+        if cmd_opts.to_render:
+            run_sim.run_sim(
+                policy_fn=model_utils.model_to_policy(model=model),
+                envname=cmd_opts.env,
+                num_rollouts=3,
+                render=True,
+                max_timesteps=None,
+            )
 
 
 def _parse_args():
@@ -133,6 +134,13 @@ def _parse_args():
         type=str,
         help='Path to save the cloned model.',
         required=True,
+    )
+    cmd_parser.add_argument(
+        '--no-render',
+        dest='to_render',
+        action='store_false',
+        help='Whether to render the model at the end.',
+        default=True,
     )
     return cmd_parser.parse_args()
 
