@@ -96,6 +96,12 @@ class RollDataset(tc_data_utils.Dataset):
         return {'obs': self.obs[i], 'axns': self.axns[i]}
 
 
+def concat_rollouts(*rolls_list):
+    obs = np.concatenate([r.obs for r in rolls_list], axis=0)
+    axns = np.concatenate([r.axns for r in rolls_list], axis=0)
+    return Rollout(obs=obs, axns=axns)
+
+
 def load_rollouts(fl):
     with open(fl) as infile:
         rollouts = pickle.load(infile)
@@ -131,8 +137,27 @@ def compute_loss(data, model, loss_fn):
     return loss_fn(model(x), y)
 
 
+def train(
+        rolls, epochs, model_elems=None, model_creation_func=None,
+        to_plot=True, tb_expt=None):
+    assert model_elems is not None or model_creation_func is not None
+    dataloader = RollDataLoader(rolls=rolls)
+    D_in, D_out = get_policy_dims(rolls=rolls)
+    if model_elems is None:
+        model_elems = model_creation_func(D_in=D_in, D_out=D_out)
+    losses = train_model(
+        dataloader=dataloader,
+        epochs=epochs,
+        tb_expt=tb_expt,
+        **model_elems
+    )
+    if to_plot:
+        plot_loss(losses=losses)
+    return model_elems
+
+
 def train_model(
-        model, loss_fn, optimizer, dataloader, epochs,
+        model, loss_fn, optimizer, dataloader, epochs, tb_expt=None,
         prev_losses=None):
     if prev_losses:
         losses = copy.deepcopy(x=prev_losses)
@@ -163,6 +188,13 @@ def train_model(
                     dl=losses['dev'][-1],
                 ),
             )
+            if tb_expt:
+                tb_expt.add_scalar_dict(
+                    {
+                        'loss/train': losses['train'][-1],
+                        'loss/dev': losses['dev'][-1],
+                    },
+                )
     return losses
 
 
@@ -175,7 +207,10 @@ def load_model(path):
 
 
 def load_policy(path):
-    model = load_model(path=path)
+    return model_to_policy(model=load_model(path=path))
+
+
+def model_to_policy(model):
     def policy(*args):
         args = [
             CudableVariable(data=tc.from_numpy(arg).float())
