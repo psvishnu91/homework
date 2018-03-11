@@ -163,8 +163,8 @@ def train_model(
         losses = copy.deepcopy(x=prev_losses)
     else:
         losses = defaultdict(list)
-    epoch_iter =  tqdm.tqdm(range(epochs), desc='epochs')
-    for i in epoch_iter:
+    # epoch_iter =  tqdm.tqdm(range(epochs), desc='epochs')
+    for i in range(epochs):
         for data in dataloader.iter():
             model.zero_grad()
             train_loss = compute_loss(
@@ -182,12 +182,12 @@ def train_model(
                     loss_fn=loss_fn,
                 ).data[0],
             )
-            epoch_iter.set_description(
-                'Train loss: {tl:,.5f}, Dev loss: {dl:,.5f}'.format(
-                    tl=losses['train'][-1],
-                    dl=losses['dev'][-1],
-                ),
-            )
+            # epoch_iter.set_description(
+            #    'Train loss: {tl:,.5f}, Dev loss: {dl:,.5f}'.format(
+            #        tl=losses['train'][-1],
+            #        dl=losses['dev'][-1],
+            #    ),
+            # )
             if tb_expt:
                 tb_expt.add_scalar_dict(
                     {
