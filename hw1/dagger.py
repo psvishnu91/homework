@@ -17,6 +17,7 @@ from __future__ import division
 from __future__ import unicode_literals
 
 import argparse
+import copy
 import functools
 
 import numpy as np
@@ -56,6 +57,7 @@ def main():
             epochs=cmd_opts.epochs,
             max_dagger_iters=cmd_opts.max_dagger_iters,
             output_model_path=cmd_opts.output_path,
+            capture_dir=cmd_opts.capture_dir,
         )
         if cmd_opts.to_render:
             run_sim.run_sim(
@@ -139,8 +141,15 @@ def _parse_args():
         '--no-render',
         dest='to_render',
         action='store_false',
-        help='Whether to render the model at the end.',
+        help='Whether to render the model at the end to the screen.',
         default=True,
+    )
+    cmd_parser.add_argument(
+        '--capture-dir',
+        dest='capture_dir',
+        type=str,
+        help='Where to save the video after every dagger iter.',
+        default=None,
     )
     return cmd_parser.parse_args()
 
@@ -154,6 +163,7 @@ def train_wrapper(
     epochs,
     max_dagger_iters,
     output_model_path,
+    capture_dir,
 ):
     tensorboard.clear_expts()
     tb_expt = tensorboard.get_experiment('dagger_init-{}'.format(env))
@@ -162,10 +172,14 @@ def train_wrapper(
         num_rollouts=init_rollout_sz,
         render=False,
         max_timesteps=MAX_TIMESTEPS,
+        capture_dir=capture_dir,
     )
     print 'Loading expert policy...'
     expert_policy_fn = load_policy.load_policy(filename=expert_path)
-    rolls = run_sim.sim_to_rollout(policy_fn=expert_policy_fn, **sim_kwargs)
+    rolls = run_sim.sim_to_rollout(
+        policy_fn=expert_policy_fn,
+        ** sim_kwargs
+    )
     model_elems = model_utils.train(
         rolls=rolls,
         epochs=epochs,
@@ -175,6 +189,7 @@ def train_wrapper(
     )
     clone_policy_fn = model_utils.model_to_policy(model_elems['model'])
     for i in tqdm.tqdm(range(max_dagger_iters), desc='dagger_iters'):
+        sim_kwargs = copy.deepcopy(x=sim_kwargs)
         rolls = train_dagger_iter(
             rolls_so_far=rolls,
             model_elems=model_elems,

@@ -1,17 +1,18 @@
 # -*- coding: utf-8 -*-
 import tqdm
-import tensorflow as tf
 import numpy as np
-import tf_util
 import gym
 import model_utils
+from gym import wrappers
 
 
 def run_sim(
-        policy_fn, envname, num_rollouts, render,
+        policy_fn, envname, num_rollouts, render, capture_dir=None,
         max_timesteps=None):
     """Returns the [[(s,a)..]..] of rollouts."""
     env = gym.make(envname)
+    if capture_dir:
+        env = wrappers.Monitor(env-env, directory=capture_dir)
     max_steps = max_timesteps or env.spec.timestep_limit
     returns = []
     observations = []
@@ -32,7 +33,7 @@ def run_sim(
             obs, r, done, _ = env.step(action)
             totalr += r
             steps += 1
-            if render:
+            if render or capture_dir:
                 env.render()
             if steps >= max_steps:
                 break
