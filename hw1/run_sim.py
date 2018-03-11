@@ -33,7 +33,7 @@ def run_sim(
             obs, r, done, _ = env.step(action)
             totalr += r
             steps += 1
-            if render or capture_dir:
+            if render:
                 env.render()
             if steps >= max_steps:
                 break
