@@ -12,7 +12,11 @@ def run_sim(
     """Returns the [[(s,a)..]..] of rollouts."""
     env = gym.make(envname)
     if capture_dir:
-        env = wrappers.Monitor(env=env, directory=capture_dir)
+        env = wrappers.Monitor(
+            env=env,
+            directory=capture_dir,
+            video_callable=False,
+        )
     max_steps = max_timesteps or env.spec.timestep_limit
     returns = []
     observations = []
