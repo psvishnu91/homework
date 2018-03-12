@@ -15,7 +15,7 @@ def run_sim(
         env = wrappers.Monitor(
             env=env,
             directory=capture_dir,
-            video_callable=False,
+            force=True,
         )
     max_steps = max_timesteps or env.spec.timestep_limit
     returns = []

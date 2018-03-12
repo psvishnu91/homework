@@ -11,14 +11,15 @@ Sample run::
         --rollout-sz 7500 \
         --epochs 200 \
         --max-dagger-iters 3 \
-        --output-path humanoid_dagger.pkl
+        --output-path humanoid_dagger.pkl \
+        --capture-dir videos_dagger/
 """
 from __future__ import division
 from __future__ import unicode_literals
 
 import argparse
-import copy
 import functools
+import os
 
 import numpy as np
 import tensorflow as tf
@@ -28,7 +29,7 @@ import load_policy
 import models
 import model_utils
 import run_sim
-import tensorboard
+import tensorboard as tb
 import tf_util
 
 
@@ -165,31 +166,39 @@ def train_wrapper(
     output_model_path,
     capture_dir,
 ):
-    tensorboard.clear_expts()
-    tb_expt = tensorboard.get_experiment('dagger_init-{}'.format(env))
+    tb.clear_expts()
+    tb_expt_global = tb.get_experiment(name='dagger_global')
     sim_kwargs = dict(
         envname=env,
-        num_rollouts=init_rollout_sz,
         render=False,
         max_timesteps=MAX_TIMESTEPS,
-        capture_dir=capture_dir,
     )
     print 'Loading expert policy...'
     expert_policy_fn = load_policy.load_policy(filename=expert_path)
     rolls = run_sim.sim_to_rollout(
         policy_fn=expert_policy_fn,
+        num_rollouts=init_rollout_sz,
         ** sim_kwargs
     )
     model_elems = model_utils.train(
         rolls=rolls,
         epochs=epochs,
         model_creation_func=MODEL_FUNC,
-        tb_expt=tb_expt,
+        tb_expts=[
+            tb.get_experiment('dagger_init-{}'.format(env)),
+            tb_expt_global,
+        ],
         to_plot=False,
     )
     clone_policy_fn = model_utils.model_to_policy(model_elems['model'])
-    for i in tqdm.tqdm(range(max_dagger_iters), desc='dagger_iters'):
-        sim_kwargs = copy.deepcopy(x=sim_kwargs)
+    print 'Saving video of rollout after init training...'
+    run_sim.sim_to_rollout(
+        policy_fn=clone_policy_fn,
+        capture_dir=_get_capture_sub_dir(fld=capture_dir, it=0),
+        num_rollouts=1,
+        **sim_kwargs
+    )
+    for i in tqdm.tqdm(range(1, max_dagger_iters+1), desc='dagger_iters'):
         rolls = train_dagger_iter(
             rolls_so_far=rolls,
             model_elems=model_elems,
@@ -197,10 +206,16 @@ def train_wrapper(
             clone_policy_fn=clone_policy_fn,
             expert_policy_fn=expert_policy_fn,
             output_model_path=None,
-            tb_expt=tensorboard.get_experiment(
-                name='dagger_iter_{i}-{e}'.format(i=i, e=env),
-            ),
+            tb_expts=[
+                tb.get_experiment(
+                    name='dagger_iter_{i}-{e}'.format(i=i, e=env),
+                ),
+                tb_expt_global,
+            ],
             sim_kwargs=sim_kwargs,
+            iter_num=i,
+            rollout_sz=rollout_sz,
+            capture_dir=capture_dir,
         )
     print 'Saving the model...'
     model_utils.save_model(
@@ -209,31 +224,38 @@ def train_wrapper(
     )
     return model_elems['model']
 
+def _get_capture_sub_dir(fld, it):
+    if not fld:
+        return fld
+    return os.path.join(fld, str(it))
 
 def train_dagger_iter(
         rolls_so_far, model_elems, epochs, clone_policy_fn,
-        expert_policy_fn, sim_kwargs, output_model_path=None,
-        tb_expt=None):
+        expert_policy_fn, sim_kwargs, iter_num, capture_dir,
+        tb_expts, rollout_sz, output_model_path=None):
     print 'Run the trained policy to get obs...'
     roll_data = run_sim.run_sim(
         policy_fn=clone_policy_fn,
+        num_rollouts=rollout_sz,
         **sim_kwargs
     )
-    expert_policy_fn(roll_data['observations'][0][None, :])
-    tb_expt.add_scalar_dict(
-        {
-            'return/mean': roll_data['returns']['mean'],
-            'return/stddev': roll_data['returns']['std'],
-        },
-    )
+    for each_expt in tb_expts:
+        each_expt.add_scalar_dict(
+            {
+                'return/mean': roll_data['returns']['mean'],
+                'return/stddev': roll_data['returns']['std'],
+            },
+        )
     print 'Predicting the expert for the rollout...'
     agg_rolls = model_utils.concat_rollouts(
         rolls_so_far,
         model_utils.Rollout(
             obs=roll_data['observations'],
             axns=np.concatenate(
-                [expert_policy_fn(o[None, :])
-                 for o in roll_data['observations']],
+                [
+                    expert_policy_fn(o[None, :])
+                    for o in roll_data['observations']
+                ],
                 axis=0,
             ),
         ),
@@ -243,8 +265,15 @@ def train_dagger_iter(
         rolls=agg_rolls,
         epochs=epochs,
         model_elems=model_elems,
-        tb_expt=tb_expt,
+        tb_expts=tb_expts,
         to_plot=False,
+    )
+    print 'Saving video after dagger iter `{}`...'.format(iter_num)
+    run_sim.sim_to_rollout(
+        policy_fn=model_utils.model_to_policy(model_elems['model']),
+        capture_dir=_get_capture_sub_dir(fld=capture_dir, it=iter_num),
+        num_rollouts=1,
+        **sim_kwargs
     )
     return agg_rolls
 

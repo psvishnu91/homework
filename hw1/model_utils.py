@@ -139,7 +139,7 @@ def compute_loss(data, model, loss_fn):
 
 def train(
         rolls, epochs, model_elems=None, model_creation_func=None,
-        to_plot=True, tb_expt=None):
+        to_plot=True, tb_expts=None):
     assert model_elems is not None or model_creation_func is not None
     dataloader = RollDataLoader(rolls=rolls)
     D_in, D_out = get_policy_dims(rolls=rolls)
@@ -148,7 +148,7 @@ def train(
     losses = train_model(
         dataloader=dataloader,
         epochs=epochs,
-        tb_expt=tb_expt,
+        tb_expts=tb_expts,
         **model_elems
     )
     if to_plot:
@@ -157,7 +157,7 @@ def train(
 
 
 def train_model(
-        model, loss_fn, optimizer, dataloader, epochs, tb_expt=None,
+        model, loss_fn, optimizer, dataloader, epochs, tb_expts=None,
         prev_losses=None):
     if prev_losses:
         losses = copy.deepcopy(x=prev_losses)
@@ -188,13 +188,14 @@ def train_model(
             #        dl=losses['dev'][-1],
             #    ),
             # )
-            if tb_expt:
-                tb_expt.add_scalar_dict(
-                    {
-                        'loss/train': losses['train'][-1],
-                        'loss/dev': losses['dev'][-1],
-                    },
-                )
+            if tb_expts:
+                for each_expt in tb_expts:
+                    each_expt.add_scalar_dict(
+                        {
+                            'loss/train': losses['train'][-1],
+                            'loss/dev': losses['dev'][-1],
+                        },
+                    )
     return losses
 
 
