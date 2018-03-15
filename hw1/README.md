@@ -63,6 +63,6 @@ python dagger.py \
 	--capture-dir videos_dagger/
 ```
 #### Video
-[![Watch the video](https://raw.githubusercontent.com/psvishnu91/homework/master/hw1/resources/dagger-humanoid.png)](https://www.youtube.com/watch?v=pdywstcEdaw)
+[![Watch the video](https://raw.githubusercontent.com/psvishnu91/homework/master/hw1/resources/dagger-humanoid.png =250x)](https://www.youtube.com/watch?v=pdywstcEdaw)
 #### Humanoid dagger training
 ![Humanoid dagger training](https://raw.githubusercontent.com/psvishnu91/homework/master/hw1/resources/dagger-humanoid-training.png)
