@@ -49,3 +49,20 @@ $ python run_expert.py \
 	--render \
 	--num_rollouts 10
 ```
+### Code to train the dagger agent. This will also save videos of the agent after every dagger iter.
+``` bash
+python dagger.py \
+	--expert experts/Humanoid-v1.pkl \
+	--init-rollout-sz 20 \
+	--init-epochs 200 \
+	--rollout-sz 20 \
+	--epochs 200 \
+	--max-dagger-iters 10 \
+	--output-path humanoid_dagger.pkl \
+	--env Humanoid-v1 \
+	--capture-dir videos_dagger/
+```
+#### Video
+[![Watch the video](https://github.com/psvishnu91/homework/tree/master/hw1/resources/dagger-humanoid.png)](https://www.youtube.com/embed/pdywstcEdaw)
+#### Training
+[![Humanoid dagger training](https://github.com/psvishnu91/homework/tree/master/hw1/resources/dagger-humanoid.png)]
