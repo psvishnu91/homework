@@ -98,6 +98,7 @@ def train_PG(
     n_layers=1,
     size=32,
     activation=tf.nn.relu,
+    use_tensorboard=True,
 ):
     # This will be returned by this function.  This will be
     # used to compute the average losses across expts to be plotted
@@ -106,7 +107,7 @@ def train_PG(
     #   {
     #       # List lengths num_iteraions
     #       "loss": [1,1,2...,],
-    #       "Return/Average": [3,9,2...,], #
+    #       "Return/Average": [3,9,2...,],
     #       "Time": [1,2,3...,],
     #   }
     history_dict = {}
@@ -123,8 +124,7 @@ def train_PG(
         if k != 'activation'
     }
     logz.save_params(params)
-    tb_expt = tb.get_experiment(name=exp_name)
-
+    tb_expt = tb.get_experiment(name=exp_name) if use_tensorboard else None
     # Set random seeds
     tf.set_random_seed(seed)
     np.random.seed(seed)
@@ -481,8 +481,8 @@ def train_PG(
             fetches=[loss_op, update_op,],
             feed_dict={sy_ob_no: ob_no, sy_ac_na: ac_na, sy_adv_n: adv_n},
         )
-        logz.log_actions(actions=ac_na, tb_expt=tb_expt)
         # Log diagnostics
+        logz.log_actions(actions=ac_na, tb_expt=tb_expt)
         history_dict = logz.log_value_scalars(
             itr=itr,
             start_time=start,
@@ -503,7 +503,7 @@ def main():
     params = parse_args()
     if not(os.path.exists('data')):
         os.makedirs('data')
-    if params.clear_tb_expt:
+    if params.use_tensorboard and params.clear_tb_expt:
         tb.clear_expts()
     train_kwargs_list = create_train_kwargs_list(params=params)
     # Don't use multiprocessing for a single process or experiment as
@@ -514,12 +514,14 @@ def main():
     else:
         map_func = map
     history_dicts = map_func(train_PG_star, train_kwargs_list)
-    logz.plot_tb_avg_history(
-        tb_avg_expt=tb.get_experiment(
-            '{}-{}'.format(params.exp_name, 'avg'),
-        ),
-        history_dicts=history_dicts,
-    )
+    if params.use_tensorboard:
+        # Average all the runs performance and plot on tensorboard.
+        logz.plot_tb_avg_history(
+            tb_avg_expt=tb.get_experiment(
+                '{}-{}'.format(params.exp_name, 'avg'),
+            ),
+            history_dicts=history_dicts,
+        )
 
 
 def parse_args():
@@ -536,15 +538,59 @@ def parse_args():
     parser.add_argument('--dont_normalize_advantages', '-dna', action='store_true')
     parser.add_argument('--nn_baseline', '-bl', action='store_true')
     parser.add_argument('--seed', type=int, default=1)
-    parser.add_argument('--n_experiments', '-e', type=int, default=1)
+    parser.add_argument(
+        '--n_experiments',
+        '-e',
+        help=(
+            'Number of times to run with different randomization seeds'
+            'to average performance'
+        ),
+        type=int,
+        default=1,
+    )
     parser.add_argument('--n_layers', '-l', type=int, default=1)
     parser.add_argument('--size', '-s', type=int, default=32)
     parser.add_argument('--num_parallel', '-np', type=int, default=1)
     parser.add_argument('--clear_tb_expt', '-ctb', default=False, action='store_true')
+    parser.add_argument(
+        '--no_tb',
+        dest='use_tensorboard',
+        help='Whether to not use tensorboard.',
+        default=True,
+        action='store_false',
+    )
     return parser.parse_args()
 
 
 def create_train_kwargs_list(params):
+    """Creates parameters for each expt run with a different random seed.
+
+    :param params: As parsed by :func:`_parse_args`.
+    :type params: namedtuple or class
+
+    :returns: Returns a list of different kwargs to be passed into
+        :func:`train_PG` for each expt run.
+    :rtype: list(dict(str, object))
+
+    Sample Output::
+
+        [
+            {
+                'exp_name': 'abc-0',
+                'env_name': 'Cart-Pole-v0',
+                ...
+                'seed': 0,
+                'use_tensorboard': False,
+            },
+            {
+                'exp_name': 'abc-1',
+                'env_name': 'Cart-Pole-v0',
+                ...
+                'seed': 10,
+                'use_tensorboard': False,
+            },
+        ]
+    """
     logdir = '{exp_name}_{env_name}_{time}'.format(
         exp_name=params.exp_name,
         env_name=params.env_name,
@@ -575,6 +621,7 @@ def create_train_kwargs_list(params):
                 seed=seed,
                 n_layers=params.n_layers,
                 size=params.size,
+                use_tensorboard=params.use_tensorboard,
             ),
         )
     return kwargs_list

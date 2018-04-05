@@ -124,16 +124,51 @@ def dump_tabular():
 # Tensorboard Plotting
 #============================================================================================#
 
-def log_scalar(name, val, tb_expt, history_dict):
+
+def log_scalar(name, val, history_dict, tb_expt=None):
+    """Logs a single scalar value to both the logger and to tensorboard.
+
+    :param name: Name of the logged value.
+    :type name: str
+    :param val: The scalar value being logged and plotted on tb.
+    :type val: int or float
+    :param history_dict: A dict with the list of all the logged
+        values (one for each iteration).
+    :type history_dict: dict(str, list(float))
+    :param tb_expt: The pycrayon tensorboard expt to update.
+    :type tb_expt: pycrayon.crayon.CrayonExperiment or NoneType
+
+    :returns: The history_dict as passed in with the scalar value appended.
+    :rtype: dict(str, list(float))
+
+    Sample input//output ``history_dict``::
+
+        {
+            # List lengths num_iteraions
+            "loss": [1.,1.,-2.,...,],
+            "Return/Average": [3,9,2...,],
+            "Return/Std": [3,0.9,.2.,...,],
+            "Time": [1,2,3...,],
+        }
+    """
     # Don't mutate the input. Mutation is evil.
     history_dict = copy.deepcopy(history_dict)
     log_tabular(name, val)
     history_dict.setdefault(name, []).append(val)
-    tb_expt.add_scalar_dict({name: float(val)})
+    if tb_expt is not None:
+        tb_expt.add_scalar_dict({name: float(val)})
     return history_dict
 
 
-def log_actions(actions, tb_expt):
+def log_actions(actions, tb_expt=None):
+    """Log the actions taken by the agent as a histogram in tensorboard.
+
+    :param actions: The actions taken by the agent in the batch.
+    :type actions: np.array(shape=(batch_sz, ac_dim))
+    :param tb_expt: As defined in :func:`log_scalar`.
+    """
+    if tb_expt is None:
+        return
     for j in xrange(actions.shape[1]):
         tb_expt.add_histogram_value(
             name='axn/{j}'.format(j=j),
@@ -144,24 +179,45 @@ def log_actions(actions, tb_expt):
 
 def log_value_scalars(
     itr, start_time, returns, loss_val, ep_lengths, timesteps_this_batch,
-    total_timesteps, tb_expt, history_dict,
+    total_timesteps, history_dict, tb_expt=None,
 ):
+    """Log the performance values for this iteration.
+
+    :param history_dict: As defined in :func:`log_scalar`.
+    :param tb_expt: As defined in :func:`log_scalar`.
+
+    :returns: history_dict after appending the performance scalar values
+        for this iteration. See also :func:`log_scalar`.
+    :rtype: dict(str, list(float))
+    """
     hd = history_dict
-    hd = log_scalar('Time', time.time() - start_time, tb_expt, hd)
-    hd = log_scalar('Iteration', itr, tb_expt, hd)
-    hd = log_scalar('loss', loss_val, tb_expt, hd)
-    hd = log_scalar('Return/Avg', np.mean(returns), tb_expt, hd)
-    hd = log_scalar('Return/Std', np.std(returns), tb_expt, hd)
-    hd = log_scalar('Return/Max', np.max(returns), tb_expt, hd)
-    hd = log_scalar('Return/Min', np.min(returns), tb_expt, hd)
-    hd = log_scalar('EpLen/Mean', np.mean(ep_lengths), tb_expt, hd)
-    hd = log_scalar('EpLen/Std', np.std(ep_lengths), tb_expt, hd)
-    hd = log_scalar('Timesteps/ThisBatch', timesteps_this_batch, tb_expt, hd)
-    hd = log_scalar('Timesteps/SoFar', total_timesteps, tb_expt, hd)
+    hd = log_scalar('Time', time.time() - start_time, history_dict=hd, tb_expt=tb_expt)
+    hd = log_scalar('Iteration', itr, history_dict=hd, tb_expt=tb_expt)
+    hd = log_scalar('loss', loss_val, history_dict=hd, tb_expt=tb_expt)
+    hd = log_scalar('Return/Avg', np.mean(returns), history_dict=hd, tb_expt=tb_expt)
+    hd = log_scalar('Return/Std', np.std(returns), history_dict=hd, tb_expt=tb_expt)
+    hd = log_scalar('Return/Max', np.max(returns), history_dict=hd, tb_expt=tb_expt)
+    hd = log_scalar('Return/Min', np.min(returns), history_dict=hd, tb_expt=tb_expt)
+    hd = log_scalar('EpLen/Mean', np.mean(ep_lengths), history_dict=hd, tb_expt=tb_expt)
+    hd = log_scalar('EpLen/Std', np.std(ep_lengths), history_dict=hd, tb_expt=tb_expt)
+    hd = log_scalar('Timesteps/ThisBatch', timesteps_this_batch, history_dict=hd, tb_expt=tb_expt)
+    hd = log_scalar('Timesteps/SoFar', total_timesteps, history_dict=hd, tb_expt=tb_expt)
     return hd
 
 
 def plot_tb_avg_history(tb_avg_expt, history_dicts):
+    """Plots the average metrics over different expt runs in tensorboard.
+
+    :param tb_avg_expt: The pycrayon tensorboard expt corresponding
+        to the average of the run.
+    :type tb_avg_expt: pycrayon.crayon.CrayonExperiment or NoneType
+    :param history_dicts: List of the performance history dicts
+        one for each experiment run. See :func:`log_scalar` for the
+        structure of a single entry in the list.
+    :type history_dicts: list(dict(str, list(float)))
+    """
+    if tb_avg_expt is None:
+        return
     avg_df = pd.DataFrame(history_dicts[0])
     for hd in history_dicts[1:]:
         avg_df += pd.DataFrame(hd)
