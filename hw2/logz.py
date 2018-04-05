@@ -1,11 +1,9 @@
-import json
-
 """
 
 Some simple logging functionality, inspired by rllab's logging.
 Assumes that each diagnostic gets logged each iteration
 
-Call logz.configure_output_dir() to start logging to a 
+Call logz.configure_output_dir() to start logging to a
 tab-separated-values file (some_folder_name/log.txt)
 
 To load the learning curves, you can do, for example
@@ -15,9 +13,20 @@ A['EpRewMean']
 
 """
 
-import os.path as osp, shutil, time, atexit, os, subprocess
+import copy
+import json
+import os.path as osp
+import shutil
+import time
+import atexit
+import os
 import pickle
+import subprocess
+
+import numpy as np
+import pandas as pd
 import tensorflow as tf
+
 
 color2num = dict(
     gray=30,
@@ -73,7 +82,7 @@ def save_params(params):
     with open(osp.join(G.output_dir, "params.json"), 'w') as out:
         out.write(json.dumps(params, separators=(',\n','\t:\t'), sort_keys=True))
 
-def pickle_tf_vars():  
+def pickle_tf_vars():
     """
     Saves tensorflow variables
     Requires them to be initialized first, also a default session must exist
@@ -81,7 +90,7 @@ def pickle_tf_vars():
     _dict = {v.name : v.eval() for v in tf.global_variables()}
     with open(osp.join(G.output_dir, "vars.pkl"), 'wb') as f:
         pickle.dump(_dict, f)
-    
+
 
 def dump_tabular():
     """
@@ -110,3 +119,53 @@ def dump_tabular():
         G.output_file.flush()
     G.log_current_row.clear()
     G.first_row=False
+
+#============================================================================================#
+# Tensorboard Plotting
+#============================================================================================#
+
+def log_scalar(name, val, tb_expt, history_dict):
+    # Don't mutate the input. Mutation is evil.
+    history_dict = copy.deepcopy(history_dict)
+    log_tabular(name, val)
+    history_dict.setdefault(name, []).append(val)
+    tb_expt.add_scalar_dict({name: float(val)})
+    return history_dict
+
+
+def log_actions(actions, tb_expt):
+    for j in xrange(actions.shape[1]):
+        tb_expt.add_histogram_value(
+            name='axn/{j}'.format(j=j),
+            hist=actions[:, j].tolist(),
+            tobuild=True,
+        )
+
+
+def log_value_scalars(
+    itr, start_time, returns, loss_val, ep_lengths, timesteps_this_batch,
+    total_timesteps, tb_expt, history_dict,
+):
+    hd = history_dict
+    hd = log_scalar('Time', time.time() - start_time, tb_expt, hd)
+    hd = log_scalar('Iteration', itr, tb_expt, hd)
+    hd = log_scalar('loss', loss_val, tb_expt, hd)
+    hd = log_scalar('Return/Avg', np.mean(returns), tb_expt, hd)
+    hd = log_scalar('Return/Std', np.std(returns), tb_expt, hd)
+    hd = log_scalar('Return/Max', np.max(returns), tb_expt, hd)
+    hd = log_scalar('Return/Min', np.min(returns), tb_expt, hd)
+    hd = log_scalar('EpLen/Mean', np.mean(ep_lengths), tb_expt, hd)
+    hd = log_scalar('EpLen/Std', np.std(ep_lengths), tb_expt, hd)
+    hd = log_scalar('Timesteps/ThisBatch', timesteps_this_batch, tb_expt, hd)
+    hd = log_scalar('Timesteps/SoFar', total_timesteps, tb_expt, hd)
+    return hd
+
+
+def plot_tb_avg_history(tb_avg_expt, history_dicts):
+    avg_df = pd.DataFrame(history_dicts[0])
+    for hd in history_dicts[1:]:
+        avg_df += pd.DataFrame(hd)
+    avg_df /= len(history_dicts)
+    for field in avg_df.columns:
+        for val in avg_df[field]:
+            tb_avg_expt.add_scalar_dict({field: float(val)})
