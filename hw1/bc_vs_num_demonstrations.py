@@ -40,7 +40,7 @@ def main():
     ):
         print '\n\nTraining for roll sz: `{:,}`.'.format(len(rolls))
         policy_fn = model_utils.model_to_policy(
-            model=bclone.train(
+            model=model_utils.train(
                 rolls=rolls,
                 epochs=epochs,
                 model_func=bclone.MODEL_FUNC,
@@ -88,4 +88,3 @@ def iter_rollouts(rollouts, ro_datasizes):
 
 if __name__ == '__main__':
     main()
-
