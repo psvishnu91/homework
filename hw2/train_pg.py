@@ -1,3 +1,23 @@
+"""Main script which implements policy gradients.
+
+.. note::
+
+    If you want to visualize with tensorboard run
+
+    .. code-block:: bash
+
+        pip install pycrayon
+        docker pull alband/crayon
+        # Tensorboard will be served on localhost:9118
+        docker run -p 9118:8888 -p 9119:8889 --name crayon alband/crayon
+
+    Each expt run will show up on tb as
+    ``{exp_name}-{i};{datetime}_{hostname}`` where i is the expt number
+    or ``avg`` for the average of all the runs.
+
+    If you don't want to use tensorboard, just run the script with the
+    ``--no_tb`` cmd line arg.
+"""
 import argparse
 import copy
 import multiprocessing
