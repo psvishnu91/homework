@@ -2,7 +2,7 @@
 
 .. note::
 
-    If you want to visualize with tensorboard run
+    If you want to visualize with *tensorboard* run
 
     .. code-block:: bash
 
@@ -16,7 +16,28 @@
     or ``avg`` for the average of all the runs.
 
     If you don't want to use tensorboard, just run the script with the
-    ``--no_tb`` cmd line arg.
+    ``--no_tb`` cmd line arg flag.
+
+Sample Usage
+============
+
+.. code-block::
+
+     python train_pg.py InvertedPendulum-v1 \
+        --n_iter 100 \
+        --batch_size 5000 \
+        --n_experiments 5 \
+        --exp_name py2-invpen-lr0.01 \
+        --n_layers 3 \
+        --size 64 \
+         --discount 0.99 \
+         --learning_rate 0.001 \
+        --reward_to_go \
+        --num_parallel 5
+
+Try --num_parallel to 1 while debugging, multiprocessing often produces
+arcane errors. Add flag ``--no_tb`` to run the script without a
+tensorboard running.
 """
 import argparse
 import copy
