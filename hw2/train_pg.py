@@ -68,16 +68,14 @@ def build_mlp(
             inputs=input_placeholder,
             units=size,
             activation=activation,
-            bias_initializer=tf.ones_initializer(),
             trainable=True,
             name='dense_1',
         )
-        for layer_num in xrange(1, n_layers):
+        for layer_num in range(1, n_layers):
             hidden = tf.layers.dense(
                 inputs=hidden,
                 units=size,
                 activation=activation,
-                bias_initializer=tf.ones_initializer(),
                 trainable=True,
                 name='dense_{}'.format(layer_num + 1),
             )
@@ -85,7 +83,6 @@ def build_mlp(
             inputs=hidden,
             units=output_size,
             activation=output_activation,
-            bias_initializer=tf.ones_initializer(),
             trainable=True,
             name='dense_output',
         )
@@ -156,7 +153,8 @@ def train_PG(
     discrete = isinstance(env.action_space, gym.spaces.Discrete)
 
     # Maximum length for episodes
-    max_path_length = max_path_length or env.spec.max_episode_steps
+    if not max_path_length:
+        max_path_length = env.spec.tags.get('wrapper_config.TimeLimit.max_episode_steps')
 
     #========================================================================================#
     # Notes on notation:
@@ -533,7 +531,7 @@ def main():
         map_func = multiprocessing.Pool(processes=n_procs).map
     else:
         map_func = map
-    history_dicts = map_func(train_PG_star, train_kwargs_list)
+    history_dicts = list(map_func(train_PG_star, train_kwargs_list))
     if params.use_tensorboard:
         # Average all the runs performance and plot on tensorboard.
         logz.plot_tb_avg_history(

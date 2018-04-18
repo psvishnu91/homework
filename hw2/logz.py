@@ -169,7 +169,7 @@ def log_actions(actions, tb_expt=None):
     """
     if tb_expt is None:
         return
-    for j in xrange(actions.shape[1]):
+    for j in range(actions.shape[1]):
         tb_expt.add_histogram_value(
             name='axn/{j}'.format(j=j),
             hist=actions[:, j].tolist(),
