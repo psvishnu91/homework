@@ -28,7 +28,7 @@ import logz
 import scipy.signal
 import os
 import path_return
-import tensorboard as tb
+import tensorboard_pycrayon as tb
 import time
 import inspect
 

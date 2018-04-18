@@ -5,7 +5,7 @@ import random
 import numpy as np
 
 import train_pg
-import tensorboard as tb
+import tensorboard_pycrayon as tb
 
 
 NUM_SETTINGS = 5
